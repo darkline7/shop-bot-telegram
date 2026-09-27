@@ -1,0 +1,7 @@
+{
+  "name": "telegram-shop",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {"dev": "concurrently \"npm run dev -w @shop/api\" \"npm run dev -w @shop/bot\" \"npm run dev -w @shop/admin\"", "build": "npm run build -ws", "typecheck": "npm run typecheck -ws", "test": "npm run test -ws", "db:generate": "npm run db:generate -w @shop/database", "db:migrate": "npm run db:migrate -w @shop/database", "db:seed": "npm run db:seed -w @shop/database"},
+  "devDependencies": {"concurrently":"^9.1.2","typescript":"^5.7.3","tsx":"^4.19.2"}
+}

@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"commonjs","moduleResolution":"node","strict":true,"esModuleInterop":true,"skipLibCheck":true,"outDir":"dist","baseUrl":".","paths":{"@shop/database":["../../packages/database"],"@shop/shared":["../../packages/shared/src"]}},"include":["src/**/*.ts"]}

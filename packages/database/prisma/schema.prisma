@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  STAFF
+  SUPPORT
+}
+enum ProductType {
+  DIGITAL
+  ACCOUNT
+  KEY
+  SERVICE
+  MANUAL
+}
+enum ItemStatus {
+  AVAILABLE
+  SOLD
+  RESERVED
+}
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  MANUAL
+}
+enum TransactionType {
+  DEPOSIT
+  PURCHASE
+  REFUND
+  BONUS
+  ADMIN_ADJUSTMENT
+}
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+enum DepositStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+enum CouponType {
+  FIXED
+  PERCENTAGE
+}
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+enum TicketSender {
+  USER
+  ADMIN
+}
+model User {
+  id String @id @default(cuid())
+  telegramId String @unique
+  username String?
+  firstName String?
+  lastName String?
+  avatar String?
+  balance Decimal @default(0) @db.Decimal(18,2)
+  totalSpent Decimal @default(0) @db.Decimal(18,2)
+  totalDeposit Decimal @default(0) @db.Decimal(18,2)
+  status Status @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastActiveAt DateTime @default(now())
+  orders Order[]
+  transactions Transaction[]
+  deposits Deposit[]
+  notifications Notification[]
+  couponUses CouponUse[]
+  tickets Ticket[]
+}
+model Admin {
+  id String @id @default(cuid())
+  username String @unique
+  passwordHash String
+  role AdminRole @default(ADMIN)
+  status Status @default(ACTIVE)
+  lastLoginAt DateTime?
+  failedLoginCount Int @default(0)
+  lockedUntil DateTime?
+  createdAt DateTime @default(now())
+  sessions RefreshSession[]
+  audits AuditLog[]
+}
+model RefreshSession {
+  id String @id @default(cuid())
+  adminId String
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  admin Admin @relation(fields:[adminId],references:[id],onDelete:Cascade)
+  @@index([adminId])
+}
+model Category {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  description String?
+  image String?
+  sortOrder Int @default(0)
+  status Status @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products Product[]
+}
+model Product {
+  id String @id @default(cuid())
+  categoryId String
+  name String
+  slug String @unique
+  description String
+  thumbnail String?
+  price Decimal @db.Decimal(18,2)
+  salePrice Decimal? @db.Decimal(18,2)
+  stock Int @default(0)
+  productType ProductType
+  status Status @default(ACTIVE)
+  autoDelivery Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  category Category @relation(fields:[categoryId],references:[id])
+  items ProductItem[]
+  orderItems OrderItem[]
+  @@index([categoryId,status])
+}
+model ProductItem {
+  id String @id @default(cuid())
+  productId String
+  content String
+  status ItemStatus @default(AVAILABLE)
+  orderId String?
+  createdAt DateTime @default(now())
+  soldAt DateTime?
+  product Product @relation(fields:[productId],references:[id])
+  order Order? @relation(fields:[orderId],references:[id])
+  @@index([productId,status,createdAt])
+}
+model Order {
+  id String @id @default(cuid())
+  orderCode String @unique
+  userId String
+  totalAmount Decimal @db.Decimal(18,2)
+  status OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  deliveryStatus DeliveryStatus @default(PENDING)
+  note String?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  user User @relation(fields:[userId],references:[id])
+  items OrderItem[]
+  productItems ProductItem[]
+  transactions Transaction[]
+  @@index([userId,createdAt])
+}
+model OrderItem {
+  id String @id @default(cuid())
+  orderId String
+  productId String
+  quantity Int
+  price Decimal @db.Decimal(18,2)
+  subtotal Decimal @db.Decimal(18,2)
+  order Order @relation(fields:[orderId],references:[id],onDelete:Cascade)
+  product Product @relation(fields:[productId],references:[id])
+}
+model Transaction {
+  id String @id @default(cuid())
+  userId String
+  type TransactionType
+  amount Decimal @db.Decimal(18,2)
+  balanceBefore Decimal @db.Decimal(18,2)
+  balanceAfter Decimal @db.Decimal(18,2)
+  status TransactionStatus @default(COMPLETED)
+  reference String? @unique
+  description String
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id])
+  orderId String?
+  order Order? @relation(fields:[orderId],references:[id])
+  @@index([userId,createdAt])
+}
+model Deposit {
+  id String @id @default(cuid())
+  userId String
+  amount Decimal @db.Decimal(18,2)
+  method String
+  transactionCode String @unique
+  status DepositStatus @default(PENDING)
+  metadata Json?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  user User @relation(fields:[userId],references:[id])
+  @@index([userId,createdAt])
+}
+model Coupon {
+  id String @id @default(cuid())
+  code String @unique
+  type CouponType
+  value Decimal @db.Decimal(18,2)
+  maxUses Int?
+  usedCount Int @default(0)
+  minOrder Decimal @default(0) @db.Decimal(18,2)
+  expiresAt DateTime?
+  status Status @default(ACTIVE)
+  uses CouponUse[]
+}
+model CouponUse {
+  id String @id @default(cuid())
+  couponId String
+  userId String
+  orderId String?
+  createdAt DateTime @default(now())
+  coupon Coupon @relation(fields:[couponId],references:[id])
+  user User @relation(fields:[userId],references:[id])
+  @@unique([couponId,userId])
+}
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  type String
+  title String
+  message String
+  status NotificationStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id])
+ 
+}
+model AuditLog {
+  id String @id @default(cuid())
+  adminId String?
+  action String
+  entity String
+  entityId String?
+  oldData Json?
+  newData Json?
+  ip String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  admin Admin? @relation(fields:[adminId],references:[id])
+  @@index([createdAt])
+}
+model Setting {
+  id String @id @default(cuid())
+  key String @unique
+  value String
+  type String @default("text")
+  updatedAt DateTime @updatedAt
+}
+model Ticket {
+  id String @id @default(cuid())
+  userId String
+  subject String
+  status TicketStatus @default(OPEN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id])
+  messages TicketMessage[]
+}
+model TicketMessage {
+  id String @id @default(cuid())
+  ticketId String
+  sender TicketSender
+  message String
+  createdAt DateTime @default(now())
+  ticket Ticket @relation(fields:[ticketId],references:[id],onDelete:Cascade)
+}
+model Broadcast {
+  id String @id @default(cuid())
+  message String
+  status String @default("PENDING")
+  total Int @default(0)
+  sent Int @default(0)
+  failed Int @default(0)
+  createdAt DateTime @default(now())
+}
+

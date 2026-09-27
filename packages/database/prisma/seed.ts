@@ -1,0 +1,6 @@
+import path from 'node:path'; import dotenv from 'dotenv'; dotenv.config({path:path.resolve(__dirname,'../../../.env')});
+
+import { PrismaClient, AdminRole, ProductType } from '@prisma/client'; import bcrypt from 'bcryptjs';
+const db = new PrismaClient();
+async function main() { const password = process.env.ADMIN_PASSWORD; if (!password) throw new Error('ADMIN_PASSWORD is required'); await db.admin.upsert({ where:{username:process.env.ADMIN_USERNAME || 'admin'}, update:{}, create:{username:process.env.ADMIN_USERNAME || 'admin',passwordHash:await bcrypt.hash(password,12),role:AdminRole.SUPER_ADMIN} }); const names=['GAME','AI','PREMIUM','LICENSE','SERVICES']; for (const [i,name] of names.entries()) { const c=await db.category.upsert({where:{slug:name.toLowerCase()},update:{},create:{name,slug:name.toLowerCase(),sortOrder:i}}); for(let j=1;j<=2;j++){const p=await db.product.upsert({where:{slug:`${name.toLowerCase()}-sample-${j}`},update:{},create:{categoryId:c.id,name:`${name} Sample ${j}`,slug:`${name.toLowerCase()}-sample-${j}`,description:'Sample product; replace from admin.',price:99000,productType:ProductType.DIGITAL,stock:3}}); for(let k=0;k<3;k++) await db.productItem.create({data:{productId:p.id,content:`sample-${p.slug}-${k+1}`}});}} }
+main().finally(()=>db.$disconnect());
